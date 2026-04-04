@@ -1,0 +1,18 @@
+# Ignore the reference framework folder
+reference/
+vllm_config.json
+
+# Ignore Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+
+# Ignore environment/data
+.ipynb_checkpoints/
+*.log
+.vscode

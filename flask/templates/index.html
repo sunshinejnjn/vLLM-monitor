@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>vLLM Real-time Monitor</title>
+    <!-- Use modern fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header / Connect frame -->
+        <header class="glass-panel">
+            <div class="header-row">
+                <div class="input-group">
+                    <label for="host">vLLM Host:Port</label>
+                    <input type="text" id="host" placeholder="e.g. localhost:8000">
+                </div>
+                <button id="btn-connect" class="btn primary">Connect</button>
+            </div>
+            <div class="header-row">
+                <div class="input-group">
+                    <label for="refresh-rate">Refresh Rate:</label>
+                    <select id="refresh-rate">
+                        <option value="1">1 sec</option>
+                        <option value="2">2 sec</option>
+                        <option value="3">3 sec</option>
+                        <option value="5" selected>5 sec</option>
+                        <option value="10">10 sec</option>
+                    </select>
+                </div>
+                <div class="model-info">
+                    <span id="model-name">Model: Unknown</span>
+                </div>
+            </div>
+            <div class="header-row last-row">
+                <button id="btn-benchmark" class="btn secondary" disabled>Run Benchmark</button>
+                <div id="benchmark-result">Benchmark TPS: N/A</div>
+                <button id="btn-open-metrics" class="btn secondary" disabled>Open Metrics in Browser</button>
+            </div>
+        </header>
+
+        <!-- Dashboard -->
+        <main class="dashboard is-dimmed" id="dashboard">
+            <div class="status-bar" id="status-bar">Status: Disconnected</div>
+
+            <div class="metrics-grid">
+                <!-- Values Column -->
+                <div class="values-column">
+                    <div class="metric-card glass-panel">
+                        <h3>GPU KV Cache Usage</h3>
+                        <div class="val" id="val-gpu-cache">N/A</div>
+                    </div>
+                    <div class="metric-card glass-panel">
+                        <h3>CPU KV Cache Usage</h3>
+                        <div class="val" id="val-cpu-cache">N/A</div>
+                    </div>
+
+                    <div class="metric-card glass-panel">
+                        <h3>Requests Running</h3>
+                        <div class="val" id="val-req-run">0</div>
+                    </div>
+                    <div class="metric-card glass-panel">
+                        <h3>Requests Swapped</h3>
+                        <div class="val" id="val-req-swap">0</div>
+                    </div>
+                    <div class="metric-card glass-panel">
+                        <h3>Requests Waiting</h3>
+                        <div class="val" id="val-req-wait">0</div>
+                    </div>
+
+                    <div class="metric-card glass-panel">
+                        <h3>Prompt Temp/Throughput (tok/s)</h3>
+                        <div class="val" id="val-prompt-thru">0.0</div>
+                    </div>
+                    <div class="metric-card glass-panel">
+                        <h3>Generation Throughput (tok/s)</h3>
+                        <div class="val" id="val-gen-thru">0.0</div>
+                    </div>
+                </div>
+
+                <!-- Graphs Column -->
+                <div class="graphs-column">
+                    <div class="chart-container glass-panel">
+                        <canvas id="chart-req"></canvas>
+                    </div>
+                    <div class="chart-container glass-panel">
+                        <canvas id="chart-prompt"></canvas>
+                    </div>
+                    <div class="chart-container glass-panel">
+                        <canvas id="chart-gen"></canvas>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="/static/js/main.js"></script>
+</body>
+
+</html>
