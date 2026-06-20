@@ -8,6 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const dashboard = document.getElementById("dashboard");
     const modelNameText = document.getElementById("model-name");
     const benchmarkResultText = document.getElementById("benchmark-result");
+    const concurrencySelect = document.getElementById("concurrency");
 
     // Elements for metrics
     const gpuCacheVal = document.getElementById("val-gpu-cache");
@@ -125,6 +126,7 @@ document.addEventListener("DOMContentLoaded", () => {
             modelNameText.innerText = "Model: Unknown";
             currentModelName = "Unknown";
             benchmarkBtn.disabled = false;
+            concurrencySelect.disabled = false;
             metricsBtn.disabled = false;
             benchmarkResultText.innerText = "Benchmark TPS: N/A";
 
@@ -150,6 +152,7 @@ document.addEventListener("DOMContentLoaded", () => {
             statusText.style.color = "#94a3b8";
             modelNameText.innerText = "Model: Unknown";
             benchmarkBtn.disabled = true;
+            concurrencySelect.disabled = true;
             metricsBtn.disabled = true;
         }
     });
@@ -176,10 +179,11 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
         benchmarkBtn.disabled = true;
+        concurrencySelect.disabled = true;
         benchmarkBtn.innerText = "Running...";
         benchmarkResultText.innerText = "Benchmark TPS: Running...";
         benchmarkResultText.style.color = "var(--primary-color)";
-
+ 
         let baseUrl = metricsUrl;
         if (baseUrl.endsWith("/metrics")) {
             baseUrl = baseUrl.substring(0, baseUrl.length - 8);
@@ -188,42 +192,58 @@ document.addEventListener("DOMContentLoaded", () => {
             baseUrl += "/v1";
         }
         const completionsUrl = baseUrl + "/completions";
-
+ 
         const payload = {
             model: currentModelName,
             prompt: "Write a detailed and immersive story about a time traveler who accidentally alters the course of history. Please ensure the story is approximately 500 tokens (or words) long.",
             max_tokens: 600,
             temperature: 0.7
         };
+ 
+        const concurrency = parseInt(concurrencySelect.value) || 1;
+        const benchmarkUrl = `/api/benchmark?url=${encodeURIComponent(completionsUrl)}&concurrency=${concurrency}`;
 
-        const startTime = performance.now();
-        fetch(`/api/proxy_post?url=${encodeURIComponent(completionsUrl)}`, {
+        fetch(benchmarkUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
         })
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.json();
+            })
             .then(data => {
-                const endTime = performance.now();
-                const elapsed = (endTime - startTime) / 1000;
-                const genTokens = data.usage?.completion_tokens || data.usage?.total_tokens || 0;
-
-                if (elapsed > 0 && genTokens > 0) {
-                    const tps = genTokens / elapsed;
-                    benchmarkResultText.innerText = `Benchmark TPS: ${tps.toFixed(2)} tok/s (${genTokens} tokens in ${elapsed.toFixed(2)}s)`;
-                    benchmarkResultText.style.color = "var(--success-color)";
+                const elapsed = data.elapsed;
+                const successfulRuns = data.results || [];
+                const errors = data.errors || [];
+ 
+                if (successfulRuns.length > 0) {
+                    const totalTokens = successfulRuns.reduce((sum, run) => sum + run.gen_tokens, 0);
+                    const systemTps = totalTokens / elapsed;
+                    const avgReqTps = successfulRuns.reduce((sum, run) => sum + (run.duration > 0 ? run.gen_tokens / run.duration : 0), 0) / successfulRuns.length;
+                    
+                    let resultMsg = `System TPS: ${systemTps.toFixed(2)} tok/s (Avg Req: ${avgReqTps.toFixed(2)} tok/s) [${successfulRuns.length}/${concurrency} OK]`;
+                    if (successfulRuns.length < concurrency) {
+                        resultMsg += ` (Errors: ${errors.length})`;
+                        benchmarkResultText.style.color = "var(--warning-color)";
+                    } else {
+                        benchmarkResultText.style.color = "var(--success-color)";
+                    }
+                    benchmarkResultText.innerText = resultMsg;
                 } else {
-                    benchmarkResultText.innerText = "Benchmark failed: 0 tokens generated";
+                    const errSummary = errors[0] || "Unknown error";
+                    benchmarkResultText.innerText = `Benchmark Failed: ${errSummary}`;
                     benchmarkResultText.style.color = "var(--danger-color)";
                 }
             })
             .catch(err => {
-                benchmarkResultText.innerText = `Benchmark Error: HTTP Exception`;
+                benchmarkResultText.innerText = `Benchmark Error: ${err.message}`;
                 benchmarkResultText.style.color = "var(--danger-color)";
             })
             .finally(() => {
                 if (isMonitoring) {
                     benchmarkBtn.disabled = false;
+                    concurrencySelect.disabled = false;
                     benchmarkBtn.innerText = "Run Benchmark";
                 }
             });

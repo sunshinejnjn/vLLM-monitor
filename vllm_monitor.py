@@ -51,30 +51,43 @@ class VLLMMonitorApp(ctk.CTk):
         self.lbl_host = ctk.CTkLabel(self.conn_frame, text="vLLM Host:Port")
         self.lbl_host.grid(row=0, column=0, padx=10, pady=10)
 
-        self.entry_host = ctk.CTkEntry(self.conn_frame, placeholder_text="e.g. localhost:8000")
+        self.entry_host = ctk.CTkComboBox(self.conn_frame, values=["127.0.0.1:8000"])
         self.entry_host.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
 
-        self.btn_connect = ctk.CTkButton(self.conn_frame, text="Connect", command=self.toggle_connection)
+        self.btn_connect = ctk.CTkButton(self.conn_frame, text="Connect", command=self.toggle_connection, width=180)
         self.btn_connect.grid(row=0, column=2, padx=10, pady=10)
 
         self.lbl_refresh = ctk.CTkLabel(self.conn_frame, text="Refresh Rate:")
         self.lbl_refresh.grid(row=1, column=0, padx=10, pady=10)
 
-        self.combo_refresh = ctk.CTkComboBox(self.conn_frame, values=["1 sec", "2 sec", "3 sec", "5 sec", "10 sec"], command=self.change_refresh_rate)
-        self.combo_refresh.set("3 sec")
-        self.combo_refresh.grid(row=1, column=1, padx=10, pady=10, sticky="w")
+        self.refresh_model_frame = ctk.CTkFrame(self.conn_frame, fg_color="transparent")
+        self.refresh_model_frame.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
+        self.refresh_model_frame.grid_columnconfigure(1, weight=1)
 
-        self.lbl_model = ctk.CTkLabel(self.conn_frame, text="Model: Unknown", font=("Arial", 12, "bold"), text_color="#1f538d")
-        self.lbl_model.grid(row=1, column=2, padx=10, pady=10, sticky="w")
+        self.combo_refresh = ctk.CTkComboBox(self.refresh_model_frame, values=["1 sec", "2 sec", "3 sec", "5 sec", "10 sec"], command=self.change_refresh_rate)
+        self.combo_refresh.set("3 sec")
+        self.combo_refresh.grid(row=0, column=0, sticky="w")
+
+        self.lbl_model = ctk.CTkLabel(self.refresh_model_frame, text="Model: Unknown", font=("Arial", 12, "bold"), text_color="#1f538d")
+        self.lbl_model.grid(row=0, column=1, padx=(20, 10), sticky="e")
+
+        self.btn_open_metrics = ctk.CTkButton(self.conn_frame, text="Open Metrics in Browser", command=self.open_metrics_browser, state="disabled", width=180)
+        self.btn_open_metrics.grid(row=1, column=2, padx=10, pady=10)
 
         self.btn_benchmark = ctk.CTkButton(self.conn_frame, text="Run Benchmark", command=self.run_benchmark, state="disabled")
         self.btn_benchmark.grid(row=2, column=0, padx=10, pady=10)
 
-        self.lbl_benchmark_result = ctk.CTkLabel(self.conn_frame, text="Benchmark TPS: N/A", text_color="gray")
-        self.lbl_benchmark_result.grid(row=2, column=1, padx=10, pady=10, sticky="w")
+        # Sub-frame to hold concurrency selector and benchmark result on the same row
+        self.bench_sub_frame = ctk.CTkFrame(self.conn_frame, fg_color="transparent")
+        self.bench_sub_frame.grid(row=2, column=1, columnspan=2, padx=10, pady=10, sticky="ew")
+        self.bench_sub_frame.grid_columnconfigure(1, weight=1)
 
-        self.btn_open_metrics = ctk.CTkButton(self.conn_frame, text="Open Metrics in Browser", command=self.open_metrics_browser, state="disabled")
-        self.btn_open_metrics.grid(row=2, column=2, padx=10, pady=10)
+        self.combo_concurrency = ctk.CTkComboBox(self.bench_sub_frame, values=["1", "2", "4", "8", "16", "32", "64"], width=60)
+        self.combo_concurrency.set("1")
+        self.combo_concurrency.grid(row=0, column=0, sticky="w")
+
+        self.lbl_benchmark_result = ctk.CTkLabel(self.bench_sub_frame, text="Benchmark TPS: N/A", text_color="gray")
+        self.lbl_benchmark_result.grid(row=0, column=1, padx=10, sticky="w")
 
         # Dashboard frame
         self.dash_frame = ctk.CTkScrollableFrame(self)
@@ -188,31 +201,43 @@ class VLLMMonitorApp(ctk.CTk):
 
     def load_config(self):
         default_host = "127.0.0.1:8000"
+        self.hosts_history = [default_host]
         if os.path.exists(self.config_file):
             try:
                 with open(self.config_file, "r") as f:
                     config = json.load(f)
-                    host = config.get("last_host", "")
-                    if host:
-                        self.entry_host.delete(0, "end")
-                        self.entry_host.insert(0, host)
-                        self.after(50, self.toggle_connection)
-                    else:
-                        self.entry_host.delete(0, "end")
-                        self.entry_host.insert(0, default_host)
-                        self.save_config(default_host)
+                    hosts = config.get("hosts", [])
+                    last_host = config.get("last_host", "")
+                    
+                    if not hosts and last_host:
+                        hosts = [last_host]
+                        
+                    if hosts:
+                        seen = set()
+                        self.hosts_history = [x for x in hosts if not (x in seen or seen.add(x))][:5]
+                    
+                    if not self.hosts_history:
+                        self.hosts_history = [default_host]
             except Exception as e:
                 print(f"Error loading config: {e}")
-                self.entry_host.insert(0, default_host)
-                self.save_config(default_host)
-        else:
-            self.entry_host.insert(0, default_host)
-            self.save_config(default_host)
+                self.hosts_history = [default_host]
+        
+        self.entry_host.configure(values=self.hosts_history)
+        self.entry_host.set(self.hosts_history[0])
+        self.after(50, self.toggle_connection)
 
     def save_config(self, host_str):
         try:
+            if host_str in self.hosts_history:
+                self.hosts_history.remove(host_str)
+            self.hosts_history.insert(0, host_str)
+            self.hosts_history = self.hosts_history[:5]
+            
+            self.entry_host.configure(values=self.hosts_history)
+            self.entry_host.set(host_str)
+            
             with open(self.config_file, "w") as f:
-                json.dump({"last_host": host_str}, f, indent=4)
+                json.dump({"hosts": self.hosts_history, "last_host": host_str}, f, indent=4)
         except Exception as e:
             print(f"Error saving config: {e}")
 
@@ -437,6 +462,11 @@ class VLLMMonitorApp(ctk.CTk):
                 
             completions_url = base_url + "/completions"
             
+            try:
+                concurrency = int(self.combo_concurrency.get())
+            except Exception:
+                concurrency = 1
+            
             payload = {
                 "model": self.current_model_name,
                 "prompt": "Write a detailed and immersive story about a time traveler who accidentally alters the course of history. Please ensure the story is approximately 500 tokens (or words) long.",
@@ -444,25 +474,53 @@ class VLLMMonitorApp(ctk.CTk):
                 "temperature": 0.7
             }
             
-            start_t = time.time()
-            res = requests.post(completions_url, json=payload, timeout=120)
-            end_t = time.time()
+            results = []
+            errors = []
+            threads = []
             
-            if res.status_code == 200:
-                data = res.json()
-                usage = data.get("usage", {})
-                gen_tokens = usage.get("completion_tokens", 0)
-                elapsed = end_t - start_t
+            start_t = time.time()
+            
+            def worker():
+                try:
+                    req_start = time.time()
+                    res = requests.post(completions_url, json=payload, timeout=120)
+                    req_end = time.time()
+                    if res.status_code == 200:
+                        data = res.json()
+                        usage = data.get("usage", {})
+                        gen_tokens = usage.get("completion_tokens", 0)
+                        results.append((gen_tokens, req_end - req_start))
+                    else:
+                        errors.append(f"HTTP {res.status_code}")
+                except Exception as e:
+                    errors.append(str(e))
+            
+            for _ in range(concurrency):
+                t = threading.Thread(target=worker)
+                threads.append(t)
+                t.start()
                 
-                if elapsed > 0 and gen_tokens > 0:
-                    tps = gen_tokens / elapsed
-                    result_msg = f"Benchmark TPS: {tps:.2f} tok/s ({gen_tokens} tokens in {elapsed:.2f}s)"
-                    color = "green"
-                else:
-                    result_msg = "Benchmark failed: 0 tokens generated"
-                    color = "red"
+            for t in threads:
+                t.join()
+                
+            end_t = time.time()
+            elapsed = end_t - start_t
+            
+            if results:
+                total_tokens = sum(r[0] for r in results)
+                system_tps = total_tokens / elapsed if elapsed > 0 else 0
+                avg_req_tps = sum(r[0]/r[1] for r in results if r[1] > 0) / len(results)
+                
+                result_msg = f"System TPS: {system_tps:.2f} tok/s (Avg Req: {avg_req_tps:.2f} tok/s) [{len(results)}/{concurrency} OK]"
+                color = "green"
+                if len(results) < concurrency:
+                    result_msg += f" (Errors: {len(errors)})"
+                    color = "orange"
             else:
-                result_msg = f"Benchmark Error: HTTP {res.status_code}"
+                err_summary = errors[0] if errors else "Unknown error"
+                if len(err_summary) > 40:
+                    err_summary = err_summary[:40] + "..."
+                result_msg = f"Benchmark Failed: {err_summary}"
                 color = "red"
         except Exception as e:
             err_msg = str(e)

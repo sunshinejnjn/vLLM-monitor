@@ -12,14 +12,15 @@ A lightweight Python desktop application for direct monitoring.
 - **Real-time Metrics:** Tracks GPU/CPU KV cache usage and request states (running, waiting, swapped).
 - **Throughput Visualization:** Live plots for Prompt and Generation tokens per second.
 - **Customizable Refresh:** Set your own monitoring interval (default: 3s).
-- **Persistent Settings:** Automatically remembers your last connected host and refresh rate.
-- **Performance Benchmarking:** Built-in tool to test tokens-per-second (TPS).
+- **Persistent Settings & History:** Automatically stores and suggests up to the **5 most recent connected hosts** in a dropdown box.
+- **Concurrency Benchmarking:** Built-in tool to run parallel performance tests under various concurrency levels (`1`, `2`, `4`, `8`, `16`, `32`, `64`), reporting overall **System TPS** and **Average Request TPS**.
 
 ### Requirements & Quick Start
 1. Install dependencies:
    ```bash
-   pip install requests matplotlib PyQt5
+   pip install -r requirements.txt
    ```
+   *(Requires `customtkinter`, `requests`, and `matplotlib`)*
 2. Run the application:
    ```bash
    python vllm_monitor.py
@@ -36,7 +37,7 @@ A standalone Flask-based web dashboard accessible via any browser.
 - **Persistent Settings:** Uses browser `localStorage` to save your config (no database required).
 - **Interactive Charts:** Powered by `Chart.js` for smooth visualization.
 - **Proxy Support:** Includes a Flask proxy to bypass CORS issues for remote telemetry.
-- **Benchmark Tool:** Integrated TPS generation test.
+- **Concurrent Benchmark Tool:** Integrated TPS test supporting multi-request parallel benchmarking.
 
 ### Requirements & Quick Start
 1. Install dependencies:

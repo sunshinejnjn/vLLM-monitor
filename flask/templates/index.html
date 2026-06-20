@@ -33,14 +33,23 @@
                         <option value="10">10 sec</option>
                     </select>
                 </div>
-                <div class="model-info">
+                <div class="model-info" style="margin-left: auto;">
                     <span id="model-name">Model: Unknown</span>
                 </div>
+                <button id="btn-open-metrics" class="btn secondary" disabled>Open Metrics in Browser</button>
             </div>
             <div class="header-row last-row">
                 <button id="btn-benchmark" class="btn secondary" disabled>Run Benchmark</button>
+                <select id="concurrency" class="select-small" disabled>
+                    <option value="1" selected>1</option>
+                    <option value="2">2</option>
+                    <option value="4">4</option>
+                    <option value="8">8</option>
+                    <option value="16">16</option>
+                    <option value="32">32</option>
+                    <option value="64">64</option>
+                </select>
                 <div id="benchmark-result">Benchmark TPS: N/A</div>
-                <button id="btn-open-metrics" class="btn secondary" disabled>Open Metrics in Browser</button>
             </div>
         </header>
 
